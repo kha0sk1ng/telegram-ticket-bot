@@ -7,6 +7,10 @@
 
 A support desk in a box for Telegram communities and businesses. Users open a private ticket with one button, and every ticket becomes its own topic in your staff group — conversations stay organized, and closing a ticket produces a downloadable transcript.
 
+## Demo
+
+![Demo: opening a ticket, two-way relay, and closing with a transcript](assets/demo.gif)
+
 ## How it works
 
 1. A user sends `/start` to the bot and presses **Open a ticket**.
