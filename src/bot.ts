@@ -31,11 +31,37 @@ export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
     }
     const active = store.findByUser(ctx.from.id);
     if (active) {
-      await ctx.reply(`You already have an open ticket #${active.id}. Send your message here and the team will reply.`);
-      return;
+      // Staff may have deleted or closed the forum topic manually.
+      // Detect that here so the user is never stuck with a dead ticket.
+      if (!(await isTopicAlive(active.topicId))) {
+        store.close(active.id, "topic was deleted or closed");
+        await store.persist();
+        await ctx.reply(
+          `Your previous ticket #${active.id} was closed because its topic was removed.`,
+        );
+      } else {
+        await ctx.reply(`You already have an open ticket #${active.id}. Send your message here and the team will reply.`);
+        return;
+      }
     }
     await ctx.reply(welcomeText, openTicketButton);
   });
+
+  async function isTopicAlive(topicId: number): Promise<boolean> {
+    // The Bot API cannot fetch a topic by id directly, and grammY does not
+    // type the newer getForumTopicIconEmoji method, so probe it over HTTP:
+    // it returns 404 when the topic no longer exists. (editForumTopic with
+    // no fields is a no-op and succeeds even for deleted topics.)
+    try {
+      const res = await fetch(
+        `https://api.telegram.org/bot${token}/getForumTopicIconEmoji?chat_id=${staffGroupId}&message_thread_id=${topicId}`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
 
   bot.callbackQuery("open_ticket", async (ctx) => {
     if (!ctx.from) {
@@ -138,7 +164,9 @@ export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
   });
 
   // Staff replies inside a ticket topic are relayed to the user.
-  bot.on("message", async (ctx) => {
+  // Only text and media messages are relayed: service messages such as
+  // forum_topic_created cannot be copied and are not conversations.
+  bot.on(["message:text", "message:media"], async (ctx) => {
     if (ctx.chat.type === "private") {
       if (ctx.msg.text?.startsWith("/")) {
         return;
@@ -166,10 +194,22 @@ export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
     try {
       await ctx.copyMessage(staffGroupId, { message_thread_id: ticket.topicId });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       logger.error("user_message_relay_failed", {
         ticketId: ticket.id,
-        message: error instanceof Error ? error.message : String(error),
+        message,
       });
+      // The forum topic may have been deleted by staff manually.
+      // In that case the ticket can never be delivered to, so close it
+      // and let the user open a fresh one.
+      if (/message thread not found|topic.*not found|TOPIC_CLOSED|thread not found/i.test(message)) {
+        store.close(ticket.id, "topic was deleted");
+        await store.persist();
+        await ctx.reply(
+          `Your ticket #${ticket.id} was closed because its topic was removed. Send /start to open a new ticket.`,
+        );
+        return;
+      }
       await ctx.reply("Your message could not be delivered. Please try again.");
       return;
     }
