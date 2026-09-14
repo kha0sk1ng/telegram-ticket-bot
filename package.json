@@ -1,0 +1,34 @@
+{
+  "name": "telegram-ticket-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A grammY Telegram support ticket bot with forum topics, staff relaying, and closing transcripts.",
+  "type": "module",
+  "scripts": {
+    "dev": "node ./node_modules/tsx/dist/cli.mjs src/index.ts",
+    "build": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "start": "node ./node_modules/tsx/dist/cli.mjs src/index.ts",
+    "set-webhook": "node ./node_modules/tsx/dist/cli.mjs scripts/set-webhook.ts",
+    "test": "node ./node_modules/tsx/dist/cli.mjs --test test/**/*.test.ts"
+  },
+  "keywords": [
+    "telegram",
+    "grammy",
+    "bot",
+    "tickets",
+    "support"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "grammy": "^1.42.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
+  }
+}
