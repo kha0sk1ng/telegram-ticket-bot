@@ -1,10 +1,11 @@
-import { Bot, Context, InlineKeyboard, InputFile } from "grammy";
+import { Bot, Context, GrammyError, InlineKeyboard, InputFile } from "grammy";
 import { callbackData, parseCallback } from "./callbacks.js";
 import { DEFAULT_CATEGORIES, findCategory, type Category } from "./categories.js";
 import { detectLang, messages, type Lang } from "./i18n.js";
 import type { Ticket, TicketStore } from "./tickets.js";
 import { formatOpenTicketLine, formatTranscript, ticketTopicTitle } from "./transcript.js";
 import { isOwner, isStaff } from "./permissions.js";
+import { isTopicGoneError } from "./topics.js";
 import { logger } from "./logger.js";
 
 export interface BotDeps {
@@ -21,6 +22,9 @@ export interface BotDeps {
 const HTML = { parse_mode: "HTML" } as const;
 
 const errorMessage = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** Telegram's own error text, such as "Bad Request: TOPIC_ID_INVALID". */
+const errorDescription = (error: unknown) => (error instanceof GrammyError ? error.description : errorMessage(error));
 
 const displayName = (from: { username?: string; first_name: string }) =>
   from.username ? `@${from.username}` : from.first_name;
@@ -72,19 +76,19 @@ export function createBot({
       .catch((error) => logger.warn("reaction_failed", { message: errorMessage(error) }));
   }
 
+  /**
+   * The Bot API cannot fetch a topic by id, so probe it with reopenForumTopic:
+   * a live topic answers ok (it was closed, now reopened, which an open ticket
+   * wants anyway) or TOPIC_NOT_MODIFIED; a deleted one answers TOPIC_ID_INVALID.
+   * sendChatAction and an empty editForumTopic succeed even for deleted topics.
+   * Any other error is treated as alive: never drop a ticket on uncertainty.
+   */
   async function isTopicAlive(topicId: number): Promise<boolean> {
-    // The Bot API cannot fetch a topic by id directly, and grammY does not
-    // type the newer getForumTopicIconEmoji method, so probe it over HTTP:
-    // it returns 404 when the topic no longer exists. (editForumTopic with
-    // no fields is a no-op and succeeds even for deleted topics.)
     try {
-      const res = await fetch(
-        `https://api.telegram.org/bot${token}/getForumTopicIconEmoji?chat_id=${staffGroupId}&message_thread_id=${topicId}`,
-        { signal: AbortSignal.timeout(5000) },
-      );
-      return res.ok;
-    } catch {
-      return false;
+      await bot.api.reopenForumTopic(staffGroupId, topicId);
+      return true;
+    } catch (error) {
+      return !isTopicGoneError(errorDescription(error));
     }
   }
 
@@ -116,7 +120,17 @@ export function createBot({
             .sendMessage(ticket.userId, t.closedByStaff(ticket.id), HTML)
             .catch((error) => logger.warn("purge_notify_failed", { ticketId: ticket.id, message: errorMessage(error) }));
         }
-        await bot.api.deleteForumTopic(staffGroupId, ticket.topicId);
+        try {
+          await bot.api.deleteForumTopic(staffGroupId, ticket.topicId);
+        } catch (error) {
+          const description = errorDescription(error);
+          // Already deleted by hand: nothing left to do, not a failure.
+          if (isTopicGoneError(description)) {
+            return;
+          }
+          logger.warn("purge_topic_failed", { ticketId: ticket.id, topicId: ticket.topicId, message: description });
+          throw error;
+        }
       }),
     );
     const failedTopics = results.filter((result) => result.status === "rejected").length;
