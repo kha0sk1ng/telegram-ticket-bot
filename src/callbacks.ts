@@ -3,7 +3,8 @@ export type CallbackAction =
   | { kind: "category"; categoryId: string }
   | { kind: "userClose"; ticketId: number }
   | { kind: "staffClose"; ticketId: number }
-  | { kind: "rate"; ticketId: number; rating: number };
+  | { kind: "rate"; ticketId: number; rating: number }
+  | { kind: "purge"; confirm: boolean };
 
 export function callbackData(action: CallbackAction): string {
   switch (action.kind) {
@@ -15,6 +16,8 @@ export function callbackData(action: CallbackAction): string {
       return `sc:${action.ticketId}`;
     case "rate":
       return `rate:${action.ticketId}:${action.rating}`;
+    case "purge":
+      return `purge:${action.confirm ? "yes" : "no"}`;
   }
 }
 
@@ -38,6 +41,8 @@ export function parseCallback(data: string): CallbackAction | undefined {
       const rating = positiveInt(second);
       return ticketId !== undefined && rating !== undefined ? { kind: "rate", ticketId, rating } : undefined;
     }
+    case "purge":
+      return first === "yes" || first === "no" ? { kind: "purge", confirm: first === "yes" } : undefined;
     default:
       return undefined;
   }

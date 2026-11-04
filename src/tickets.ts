@@ -103,6 +103,21 @@ export class TicketStore {
     return this.state.nextId;
   }
 
+  /** All tickets, open and closed. */
+  get ticketCount(): number {
+    return this.state.tickets.length;
+  }
+
+  /**
+   * Remove every ticket and pending message and restart numbering at #1.
+   * Returns the removed tickets so their topics can be deleted.
+   */
+  purge(): Ticket[] {
+    const removed = this.state.tickets;
+    this.state = emptyState();
+    return removed;
+  }
+
   get openTickets(): Ticket[] {
     return this.state.tickets.filter((ticket) => ticket.status === "open");
   }

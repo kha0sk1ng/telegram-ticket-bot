@@ -8,6 +8,8 @@ test("callback data round-trips for every action", () => {
     { kind: "userClose", ticketId: 7 },
     { kind: "staffClose", ticketId: 7 },
     { kind: "rate", ticketId: 7, rating: 4 },
+    { kind: "purge", confirm: true },
+    { kind: "purge", confirm: false },
   ] as const) {
     assert.deepEqual(parseCallback(callbackData(action)), action);
   }
@@ -19,7 +21,7 @@ test("callback data fits Telegram's 64-byte limit", () => {
 });
 
 test("malformed callback data is rejected", () => {
-  for (const data of ["", "cat:", "cat:x y", "uc:abc", "sc:-1", "rate:7", "rate:7:x", "unknown:1", "open_ticket"]) {
+  for (const data of ["", "cat:", "cat:x y", "uc:abc", "sc:-1", "rate:7", "rate:7:x", "unknown:1", "open_ticket", "purge:", "purge:maybe"]) {
     assert.equal(parseCallback(data), undefined, data);
   }
 });

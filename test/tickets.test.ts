@@ -108,3 +108,30 @@ test("logMessage appends to open tickets only and stores text", () => {
   store.logMessage(ticket.id, "in", "@alice", "ignored");
   assert.equal(ticket.messages.length, 2);
 });
+
+test("purge removes every ticket and pending message and restarts numbering", async () => {
+  const backend = new MemoryBackend();
+  const store = await TicketStore.load(backend);
+  store.open(1, "@a", 101);
+  const closed = store.open(2, "@b", 102);
+  store.close(closed.id);
+  store.addPending(3, 55, "hello");
+
+  const removed = store.purge();
+  assert.deepEqual(
+    removed.map((ticket) => [ticket.id, ticket.status]),
+    [
+      [1, "open"],
+      [2, "closed"],
+    ],
+  );
+  assert.equal(store.ticketCount, 0);
+  assert.equal(store.openTickets.length, 0);
+  assert.deepEqual(store.takePending(3), []);
+  assert.equal(store.peekNextId(), 1);
+
+  await store.persist();
+  const reloaded = await TicketStore.load(backend);
+  assert.equal(reloaded.ticketCount, 0);
+  assert.equal(reloaded.open(4, "@d", 104).id, 1);
+});

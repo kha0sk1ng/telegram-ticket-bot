@@ -51,6 +51,13 @@ export interface Messages {
   staffCloseOnlyInTopic: string;
   staffNoTicketInTopic: string;
   staffDeliveryFailed: string;
+  staffPurgeOwnerOnly: string;
+  staffPurgeEmpty: string;
+  staffPurgeConfirm(count: number): string;
+  staffPurgeYes: string;
+  staffPurgeNo: string;
+  staffPurgeCancelled: string;
+  staffPurgeDone(count: number, failedTopics: number): string;
 }
 
 const reasonLine = (label: string, reason?: string) => (reason ? `\n${label}: ${escapeHtml(reason)}` : "");
@@ -99,6 +106,19 @@ const ru: Messages = {
   staffCloseOnlyInTopic: "/close работает только внутри темы тикета.",
   staffNoTicketInTopic: "К этой теме не привязан открытый тикет.",
   staffDeliveryFailed: "⚠️ Не удалось доставить: пользователь, возможно, заблокировал бота.",
+  staffPurgeOwnerOnly: "Удалить все тикеты может только владелец группы.",
+  staffPurgeEmpty: "Тикетов нет, удалять нечего.",
+  staffPurgeConfirm: (count) =>
+    `⚠️ <b>Удалить все тикеты (${escapeHtml(count)})</b>, их темы и историю? Отменить это нельзя.`,
+  staffPurgeYes: "🗑 Да, удалить",
+  staffPurgeNo: "Отмена",
+  staffPurgeCancelled: "Удаление отменено.",
+  staffPurgeDone: (count, failedTopics) =>
+    `🗑 Удалено тикетов: ${escapeHtml(count)}. Нумерация начнётся с #1.` +
+    (failedTopics > 0
+      ? `
+⚠️ Не удалось удалить тем: ${escapeHtml(failedTopics)}. Дайте боту право «Удаление сообщений» или удалите их вручную.`
+      : ""),
 };
 
 const en: Messages = {
@@ -145,6 +165,19 @@ const en: Messages = {
   staffCloseOnlyInTopic: "/close only works inside a ticket topic.",
   staffNoTicketInTopic: "No open ticket is linked to this topic.",
   staffDeliveryFailed: "⚠️ Could not deliver the message: the user may have blocked the bot.",
+  staffPurgeOwnerOnly: "Only the group owner can delete all tickets.",
+  staffPurgeEmpty: "There are no tickets to delete.",
+  staffPurgeConfirm: (count) =>
+    `⚠️ <b>Delete all tickets (${escapeHtml(count)})</b>, their topics, and history? This cannot be undone.`,
+  staffPurgeYes: "🗑 Yes, delete",
+  staffPurgeNo: "Cancel",
+  staffPurgeCancelled: "Deletion cancelled.",
+  staffPurgeDone: (count, failedTopics) =>
+    `🗑 Deleted tickets: ${escapeHtml(count)}. Numbering restarts at #1.` +
+    (failedTopics > 0
+      ? `
+⚠️ Could not delete ${escapeHtml(failedTopics)} topic(s). Give the bot the "Delete messages" right or remove them manually.`
+      : ""),
 };
 
 export const messages: Record<Lang, Messages> = { ru, en };

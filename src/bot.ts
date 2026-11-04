@@ -4,7 +4,7 @@ import { DEFAULT_CATEGORIES, findCategory, type Category } from "./categories.js
 import { detectLang, messages, type Lang } from "./i18n.js";
 import type { Ticket, TicketStore } from "./tickets.js";
 import { formatOpenTicketLine, formatTranscript, ticketTopicTitle } from "./transcript.js";
-import { isStaff } from "./permissions.js";
+import { isOwner, isStaff } from "./permissions.js";
 import { logger } from "./logger.js";
 
 export interface BotDeps {
@@ -91,6 +91,37 @@ export function createBot({
   async function isStaffMember(userId: number): Promise<boolean> {
     const member = await bot.api.getChatMember(staffGroupId, userId);
     return isStaff(member.status);
+  }
+
+  async function isGroupOwner(userId: number): Promise<boolean> {
+    const member = await bot.api.getChatMember(staffGroupId, userId);
+    return isOwner(member.status);
+  }
+
+  /**
+   * Delete every ticket: wipe the store first (so a half-finished run never
+   * leaves tickets pointing at deleted topics), then tell users with open
+   * tickets and delete the topics. Returns how many topics failed to delete.
+   */
+  async function purgeAllTickets(): Promise<{ count: number; failedTopics: number }> {
+    const removed = store.purge();
+    await store.persist();
+
+    // Run in parallel: the webhook has only a few seconds per update.
+    const results = await Promise.allSettled(
+      removed.map(async (ticket) => {
+        if (ticket.status === "open") {
+          const t = messages[ticket.lang ?? "en"];
+          await bot.api
+            .sendMessage(ticket.userId, t.closedByStaff(ticket.id), HTML)
+            .catch((error) => logger.warn("purge_notify_failed", { ticketId: ticket.id, message: errorMessage(error) }));
+        }
+        await bot.api.deleteForumTopic(staffGroupId, ticket.topicId);
+      }),
+    );
+    const failedTopics = results.filter((result) => result.status === "rejected").length;
+    logger.info("tickets_purged", { count: removed.length, failedTopics });
+    return { count: removed.length, failedTopics };
   }
 
   /**
@@ -293,6 +324,25 @@ export function createBot({
         logger.info("ticket_rated", { ticketId: ticket.id, rating: action.rating });
         return;
       }
+
+      case "purge": {
+        if (ctx.chat?.id !== staffGroupId || !(await isGroupOwner(ctx.from.id))) {
+          await ctx.answerCallbackQuery({ text: staff.staffPurgeOwnerOnly });
+          return;
+        }
+        await ctx.answerCallbackQuery();
+        if (!action.confirm) {
+          await ctx.editMessageText(staff.staffPurgeCancelled).catch(() => undefined);
+          return;
+        }
+        // Remove the buttons right away so a second tap does nothing.
+        await ctx.editMessageReplyMarkup().catch(() => undefined);
+        const { count, failedTopics } = await purgeAllTickets();
+        const done = staff.staffPurgeDone(count, failedTopics);
+        // The confirmation may have lived inside a ticket topic that is now gone.
+        await ctx.editMessageText(done).catch(() => bot.api.sendMessage(staffGroupId, done).catch(() => undefined));
+        return;
+      }
     }
   });
 
@@ -352,6 +402,26 @@ export function createBot({
       ...HTML,
       message_thread_id: ctx.message?.message_thread_id,
     });
+  });
+
+  // Deliberately left out of the command menus: it is irreversible.
+  bot.command("purge", async (ctx) => {
+    if (ctx.chat?.id !== staffGroupId || !ctx.from) {
+      return;
+    }
+    const threadOptions = { message_thread_id: ctx.message?.message_thread_id };
+    if (!(await isGroupOwner(ctx.from.id))) {
+      await ctx.reply(staff.staffPurgeOwnerOnly, threadOptions);
+      return;
+    }
+    if (store.ticketCount === 0) {
+      await ctx.reply(staff.staffPurgeEmpty, threadOptions);
+      return;
+    }
+    const keyboard = new InlineKeyboard()
+      .text(staff.staffPurgeYes, callbackData({ kind: "purge", confirm: true }))
+      .text(staff.staffPurgeNo, callbackData({ kind: "purge", confirm: false }));
+    await ctx.reply(staff.staffPurgeConfirm(store.ticketCount), { ...HTML, ...threadOptions, reply_markup: keyboard });
   });
 
   // --- Message relaying ---------------------------------------------------

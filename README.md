@@ -28,6 +28,7 @@ The bot speaks Russian to Russian-speaking users (ru, uk, be, kk) and English to
 | `/close` | Direct messages | Users | Close their own ticket |
 | `/close [reason]` | Ticket topic | Staff | Close the ticket, notify the user, post a transcript |
 | `/tickets` | Support group | Staff | List open tickets with category and age |
+| `/purge` | Support group | Group owner | Delete all tickets and their topics after confirmation; numbering restarts at #1. Requires the bot's *Delete messages* right. Not shown in the command menu |
 
 ## Customization per client
 

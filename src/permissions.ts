@@ -4,3 +4,8 @@ const staffStatuses = new Set(["creator", "administrator"]);
 export function isStaff(memberStatus: string): boolean {
   return staffStatuses.has(memberStatus);
 }
+
+/** Only the group creator may run irreversible actions such as /purge. */
+export function isOwner(memberStatus: string): boolean {
+  return memberStatus === "creator";
+}
