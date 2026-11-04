@@ -9,7 +9,7 @@ A support desk in a box for Telegram communities and businesses. Users open a pr
 
 ## Demo
 
-![Demo: opening a ticket, two-way relay, and closing with a transcript](assets/demo.gif)
+![Demo: opening a ticket, two-way relay, closing with a transcript, and a rating](assets/demo.gif)
 
 ## How it works
 
