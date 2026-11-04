@@ -24,7 +24,8 @@ export function stars(rating: number): string {
  */
 export interface Messages {
   // User side
-  welcome(brand: string): string;
+  /** notice: the safety line under the greeting; omitted when absent. */
+  welcome(brand: string, notice?: string): string;
   chooseCategory: string;
   ticketOpened(id: number, category: string): string;
   ticketOpenedWithMessages(id: number, category: string): string;
@@ -62,14 +63,15 @@ export interface Messages {
 
 const reasonLine = (label: string, reason?: string) => (reason ? `\n${label}: ${escapeHtml(reason)}` : "");
 
+const noticeLines = (notice?: string) => (notice ? ["", `🛡 <i>${escapeHtml(notice)}</i>`] : []);
+
 const ru: Messages = {
-  welcome: (brand) =>
+  welcome: (brand, notice) =>
     [
       `🎧 <b>${escapeHtml(brand)} — поддержка</b>`,
       "",
       "Опишите вопрос одним сообщением или выберите тему ниже. Команда ответит прямо здесь.",
-      "",
-      "🛡 <i>Администраторы никогда не пишут первыми и не просят seed-фразу, пароли, коды или перевод средств.</i>",
+      ...noticeLines(notice),
     ].join("\n"),
   chooseCategory: "Выберите тему обращения 👇",
   ticketOpened: (id, category) =>
@@ -122,13 +124,12 @@ const ru: Messages = {
 };
 
 const en: Messages = {
-  welcome: (brand) =>
+  welcome: (brand, notice) =>
     [
       `🎧 <b>${escapeHtml(brand)} Support</b>`,
       "",
       "Describe your question in one message or pick a topic below. The team will reply right here.",
-      "",
-      "🛡 <i>Admins never message you first and never ask for your seed phrase, passwords, codes, or a transfer of funds.</i>",
+      ...noticeLines(notice),
     ].join("\n"),
   chooseCategory: "Choose a topic 👇",
   ticketOpened: (id, category) =>

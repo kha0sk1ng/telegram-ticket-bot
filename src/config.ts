@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { parseCategories, type Category } from "./categories.js";
 import type { Lang } from "./i18n.js";
+import { parseNotice, type Notice } from "./notice.js";
 import { FileBackend, UpstashBackend, type StorageBackend } from "./storage.js";
 
 /** Per-client branding: shown in the welcome message. */
@@ -9,6 +10,8 @@ export const BRAND_NAME = process.env.BRAND_NAME?.trim() || "Support";
 export const CATEGORIES: Category[] = parseCategories(process.env.CATEGORIES);
 /** Language of staff-facing messages in the support group. */
 export const STAFF_LANG: Lang = process.env.STAFF_LANG?.trim().toLowerCase() === "ru" ? "ru" : "en";
+/** Safety line in the welcome message and bot profile; see parseNotice for the format. */
+export const SCAM_NOTICE: Notice = parseNotice(process.env.SCAM_NOTICE);
 
 export const BOT_TOKEN = process.env.BOT_TOKEN?.trim();
 export const STAFF_GROUP_ID = Number(process.env.STAFF_GROUP_ID);
@@ -31,7 +34,7 @@ export function createStorage(): StorageBackend {
 
 /** Branding and language options shared by every entry point. */
 export function botOptions() {
-  return { brand: BRAND_NAME, categories: CATEGORIES, staffLang: STAFF_LANG };
+  return { brand: BRAND_NAME, categories: CATEGORIES, staffLang: STAFF_LANG, notice: SCAM_NOTICE };
 }
 
 export function storageKind(): "upstash" | "file" {

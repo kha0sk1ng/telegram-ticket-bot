@@ -6,6 +6,7 @@ import type { Ticket, TicketStore } from "./tickets.js";
 import { formatOpenTicketLine, formatTranscript, ticketTopicTitle } from "./transcript.js";
 import { isOwner, isStaff } from "./permissions.js";
 import { isTopicGoneError } from "./topics.js";
+import { DEFAULT_NOTICE, type Notice } from "./notice.js";
 import { logger } from "./logger.js";
 
 export interface BotDeps {
@@ -17,6 +18,8 @@ export interface BotDeps {
   categories?: Category[];
   /** Language of messages posted in the support group. */
   staffLang?: Lang;
+  /** Safety line under the welcome message; null disables it. */
+  notice?: Notice;
 }
 
 const HTML = { parse_mode: "HTML" } as const;
@@ -36,6 +39,7 @@ export function createBot({
   brand = "Support",
   categories = DEFAULT_CATEGORIES,
   staffLang = "en",
+  notice = DEFAULT_NOTICE,
 }: BotDeps): Bot {
   const bot = new Bot(token);
   const staff = messages[staffLang];
@@ -198,7 +202,7 @@ export function createBot({
       await ctx.reply(t.topicGone(active.id), HTML);
     }
 
-    await ctx.reply(t.welcome(brand), { ...HTML, reply_markup: categoryKeyboard(lang) });
+    await ctx.reply(t.welcome(brand, notice?.[lang]), { ...HTML, reply_markup: categoryKeyboard(lang) });
   });
 
   async function openTicket(ctx: Context, category: Category): Promise<void> {

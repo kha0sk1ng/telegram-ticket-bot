@@ -37,8 +37,11 @@ The bot speaks Russian to Russian-speaking users (ru, uk, be, kk) and English to
 | `BRAND_NAME` | `Support` | Project name in the welcome message and bot profile |
 | `CATEGORIES` | Deposit, Withdrawal, Bug report, Other | Ticket topics: `EN \| RU` pairs separated by `;`, up to 8 |
 | `STAFF_LANG` | `en` | Language of messages in the support group (`en` or `ru`) |
+| `SCAM_NOTICE` | Crypto anti-scam line | Safety line under the welcome: `off` to hide it, or your own `EN \| RU` text (for example, about card details for a shop) |
 
-After setting `BRAND_NAME`, run `npm run setup-profile` once: it sets the bot's description, short description, and command menus in English and Russian.
+The defaults target crypto projects. For other niches, set your own `CATEGORIES` and `SCAM_NOTICE`.
+
+After setting `BRAND_NAME` or `SCAM_NOTICE`, run `npm run setup-profile` once: it sets the bot's description, short description, and command menus in English and Russian.
 
 ## Guarantees
 

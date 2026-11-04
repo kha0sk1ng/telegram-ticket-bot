@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Api } from "grammy";
-import { BRAND_NAME, requireBotToken, requireStaffGroupId } from "../src/config.js";
+import { BRAND_NAME, SCAM_NOTICE, requireBotToken, requireStaffGroupId } from "../src/config.js";
 import { logger } from "../src/logger.js";
 
 /**
@@ -17,8 +17,7 @@ const profile = {
       `🎧 Official support desk of ${BRAND_NAME}.`,
       "",
       "Press Start, describe your question, and the team will reply right here.",
-      "",
-      "🛡 Admins never message you first and never ask for your seed phrase, passwords, or funds.",
+      ...(SCAM_NOTICE ? ["", `🛡 ${SCAM_NOTICE.en}`] : []),
     ].join("\n"),
     short: `Official ${BRAND_NAME} support. Press Start to contact the team.`,
     userCommands: [
@@ -35,8 +34,7 @@ const profile = {
       `🎧 Официальная поддержка ${BRAND_NAME}.`,
       "",
       "Нажмите «Старт», опишите вопрос, и команда ответит прямо здесь.",
-      "",
-      "🛡 Администраторы никогда не пишут первыми и не просят seed-фразу, пароли или средства.",
+      ...(SCAM_NOTICE ? ["", `🛡 ${SCAM_NOTICE.ru}`] : []),
     ].join("\n"),
     short: `Официальная поддержка ${BRAND_NAME}. Нажмите «Старт», чтобы написать команде.`,
     userCommands: [

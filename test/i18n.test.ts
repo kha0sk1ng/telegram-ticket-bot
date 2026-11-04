@@ -42,3 +42,9 @@ test("stars renders a filled and empty star bar", () => {
   assert.equal(stars(3), "⭐⭐⭐☆☆");
   assert.equal(stars(5), "⭐⭐⭐⭐⭐");
 });
+
+test("welcome shows an escaped notice only when one is given", () => {
+  assert.match(messages.en.welcome("Acme", "Never share <codes>"), /🛡 <i>Never share &lt;codes&gt;<\/i>/);
+  assert.doesNotMatch(messages.en.welcome("Acme"), /🛡/);
+  assert.doesNotMatch(messages.ru.welcome("Acme", undefined), /🛡/);
+});
