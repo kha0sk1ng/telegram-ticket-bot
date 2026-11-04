@@ -1,5 +1,14 @@
 import "dotenv/config";
+import { parseCategories, type Category } from "./categories.js";
+import type { Lang } from "./i18n.js";
 import { FileBackend, UpstashBackend, type StorageBackend } from "./storage.js";
+
+/** Per-client branding: shown in the welcome message. */
+export const BRAND_NAME = process.env.BRAND_NAME?.trim() || "Support";
+/** Ticket topics offered to users; see parseCategories for the format. */
+export const CATEGORIES: Category[] = parseCategories(process.env.CATEGORIES);
+/** Language of staff-facing messages in the support group. */
+export const STAFF_LANG: Lang = process.env.STAFF_LANG?.trim().toLowerCase() === "ru" ? "ru" : "en";
 
 export const BOT_TOKEN = process.env.BOT_TOKEN?.trim();
 export const STAFF_GROUP_ID = Number(process.env.STAFF_GROUP_ID);
@@ -18,6 +27,11 @@ export function createStorage(): StorageBackend {
     throw new Error("Set both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN, or neither.");
   }
   return new FileBackend(STORE_PATH);
+}
+
+/** Branding and language options shared by every entry point. */
+export function botOptions() {
+  return { brand: BRAND_NAME, categories: CATEGORIES, staffLang: STAFF_LANG };
 }
 
 export function storageKind(): "upstash" | "file" {

@@ -13,18 +13,31 @@ A support desk in a box for Telegram communities and businesses. Users open a pr
 
 ## How it works
 
-1. A user sends `/start` to the bot and presses **Open a ticket**.
-2. The bot creates a dedicated forum topic in your support group, named `#id · @username`.
-3. Everything the user writes is relayed into the topic; every staff reply in the topic is relayed back to the user. Media messages are relayed too.
-4. A staff member runs `/close` in the topic: the user is notified, the topic is closed, and a full `.txt` transcript is posted for record keeping.
+1. A user opens the bot and sees a branded welcome with an anti-scam notice. They pick a topic (Deposit, Withdrawal, Bug report, Other) — or just start writing, and the bot asks for the topic once. Nothing they wrote is lost.
+2. The bot creates a forum topic in your support group, named `#id · category · @username`, and posts a staff card with the user's name, id, language, topic, and a **Close ticket** button.
+3. Everything the user writes is relayed into the topic and marked with a 👀 reaction as a delivery receipt; staff replies in the topic are relayed back. Media messages are relayed too.
+4. Either side can close the ticket: staff with the button or `/close [reason]`, the user with their own button or `/close`. A `.txt` transcript is posted in the topic, the topic is closed, and the user is asked to rate the support from 1 to 5 stars. The rating is posted in the topic.
+
+The bot speaks Russian to Russian-speaking users (ru, uk, be, kk) and English to everyone else.
 
 ## Commands
 
 | Command | Where | Who | Purpose |
 | --- | --- | --- | --- |
-| `/start` | Direct messages | Users | Show the support panel with the ticket button |
+| `/start` | Direct messages | Users | Show the welcome panel with topic buttons |
+| `/close` | Direct messages | Users | Close their own ticket |
 | `/close [reason]` | Ticket topic | Staff | Close the ticket, notify the user, post a transcript |
-| `/tickets` | Support group | Staff | List all open tickets |
+| `/tickets` | Support group | Staff | List open tickets with category and age |
+
+## Customization per client
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `BRAND_NAME` | `Support` | Project name in the welcome message and bot profile |
+| `CATEGORIES` | Deposit, Withdrawal, Bug report, Other | Ticket topics: `EN \| RU` pairs separated by `;`, up to 8 |
+| `STAFF_LANG` | `en` | Language of messages in the support group (`en` or `ru`) |
+
+After setting `BRAND_NAME`, run `npm run setup-profile` once: it sets the bot's description, short description, and command menus in English and Russian.
 
 ## Guarantees
 
@@ -80,14 +93,18 @@ npm test
 npm run build
 ```
 
-`npm test` covers ticket lifecycle rules, one-ticket-per-user enforcement, transcript formatting, staff permission checks, and storage backends (file, Upstash via a mocked fetch, reload across instances). `npm run build` validates TypeScript without emitting artifacts.
+`npm test` covers ticket lifecycle rules, one-ticket-per-user enforcement, pending messages, ratings, categories config, translations, button callback parsing, transcript formatting, staff permission checks, and storage backends (file, Upstash via a mocked fetch, reload across instances). `npm run build` validates TypeScript without emitting artifacts.
 
 ## Project structure
 
 ```text
 api/bot.ts              Vercel webhook entry point
 scripts/set-webhook.ts  Registers the Telegram webhook
-src/bot.ts              grammY handlers: panel, relaying, close, listing
+scripts/setup-profile.ts  Sets bot description and command menus (en + ru)
+src/bot.ts              grammY handlers: panel, categories, relaying, close, rating, listing
+src/callbacks.ts        Inline button callback data encoding and parsing
+src/categories.ts       Ticket categories and their config parsing
+src/i18n.ts             Russian and English texts, language detection
 src/config.ts           Environment configuration and validation
 src/permissions.ts      Staff status checks
 src/tickets.ts          Ticket store: lifecycle, one-per-user rule, persistence

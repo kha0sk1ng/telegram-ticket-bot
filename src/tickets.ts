@@ -1,3 +1,4 @@
+import type { Lang } from "./i18n.js";
 import type { StorageBackend } from "./storage.js";
 
 export type TicketStatus = "open" | "closed";
@@ -19,12 +20,32 @@ export interface Ticket {
   createdAt: string;
   closedAt?: string;
   closeReason?: string;
+  /** Category label in the staff language, captured when the ticket opened. */
+  category?: string;
+  lang?: Lang;
+  /** 1-5 stars, given by the user after the ticket closed. */
+  rating?: number;
   messages: TranscriptEntry[];
 }
+
+/** A message a user sent before choosing a category; relayed once the ticket opens. */
+export interface PendingMessage {
+  messageId: number;
+  text?: string;
+}
+
+export interface OpenOptions {
+  category?: string;
+  lang?: Lang;
+}
+
+const MAX_PENDING = 10;
 
 interface StoreState {
   nextId: number;
   tickets: Ticket[];
+  /** Keyed by user id. Optional so state saved by older versions still loads. */
+  pending?: Record<string, PendingMessage[]>;
 }
 
 function emptyState(): StoreState {
@@ -94,7 +115,11 @@ export class TicketStore {
     return this.openTickets.find((ticket) => ticket.topicId === topicId);
   }
 
-  open(userId: number, userName: string, topicId: number): Ticket {
+  findById(ticketId: number): Ticket | undefined {
+    return this.state.tickets.find((ticket) => ticket.id === ticketId);
+  }
+
+  open(userId: number, userName: string, topicId: number, options: OpenOptions = {}): Ticket {
     if (this.findByUser(userId)) {
       throw new Error("This user already has an open ticket.");
     }
@@ -106,6 +131,8 @@ export class TicketStore {
       topicId,
       status: "open",
       createdAt: new Date().toISOString(),
+      ...(options.category ? { category: options.category } : {}),
+      ...(options.lang ? { lang: options.lang } : {}),
       messages: [],
     };
     this.state.nextId += 1;
@@ -130,6 +157,43 @@ export class TicketStore {
     ticket.status = "closed";
     ticket.closedAt = new Date().toISOString();
     ticket.closeReason = reason;
+    return ticket;
+  }
+
+  /** Queue a message sent before a category was chosen. Returns the queue length. */
+  addPending(userId: number, messageId: number, text?: string): number {
+    this.state.pending ??= {};
+    const queue = (this.state.pending[userId] ??= []);
+    if (queue.length < MAX_PENDING) {
+      queue.push({ messageId, text });
+    }
+    return queue.length;
+  }
+
+  /** Remove and return the user's queued messages, oldest first. */
+  takePending(userId: number): PendingMessage[] {
+    const queue = this.state.pending?.[userId] ?? [];
+    if (this.state.pending) {
+      delete this.state.pending[userId];
+    }
+    return queue;
+  }
+
+  /** Record a 1-5 rating from the ticket owner, once, after the ticket closed. */
+  rate(ticketId: number, userId: number, rating: number): Ticket | undefined {
+    const ticket = this.findById(ticketId);
+    if (
+      !ticket ||
+      ticket.status !== "closed" ||
+      ticket.userId !== userId ||
+      ticket.rating !== undefined ||
+      !Number.isInteger(rating) ||
+      rating < 1 ||
+      rating > 5
+    ) {
+      return undefined;
+    }
+    ticket.rating = rating;
     return ticket;
   }
 }

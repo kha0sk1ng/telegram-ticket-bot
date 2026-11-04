@@ -9,6 +9,7 @@
     "build": "node ./node_modules/typescript/bin/tsc --noEmit",
     "start": "node ./node_modules/tsx/dist/cli.mjs src/index.ts",
     "set-webhook": "node ./node_modules/tsx/dist/cli.mjs scripts/set-webhook.ts",
+    "setup-profile": "node ./node_modules/tsx/dist/cli.mjs scripts/setup-profile.ts",
     "test": "node ./node_modules/tsx/dist/cli.mjs --test test/**/*.test.ts"
   },
   "keywords": [
