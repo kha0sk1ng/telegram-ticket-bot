@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { createBot } from "../src/bot.js";
-import { requireBotToken, requireStaffGroupId, STORE_PATH } from "../src/config.js";
+import { requireBotToken, requireStaffGroupId } from "../src/config.js";
 import { TicketStore } from "../src/tickets.js";
 import { requireWebhookSecret } from "../src/webhook.js";
 import { logger } from "../src/logger.js";
@@ -10,7 +10,8 @@ if (!webhookUrl) {
   throw new Error("WEBHOOK_URL is unset. Set it to your Vercel deployment URL.");
 }
 
-const store = await TicketStore.load(STORE_PATH);
+// Registering a webhook only needs bot.api; an in-memory store avoids touching real data.
+const store = new TicketStore();
 const bot = createBot({ token: requireBotToken(), staffGroupId: requireStaffGroupId(), store });
 
 const endpoint = `${webhookUrl}/api/bot`;

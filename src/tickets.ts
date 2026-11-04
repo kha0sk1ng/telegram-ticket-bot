@@ -1,5 +1,4 @@
-import { promises as fs } from "node:fs";
-import { dirname } from "node:path";
+import type { StorageBackend } from "./storage.js";
 
 export type TicketStatus = "open" | "closed";
 
@@ -28,34 +27,55 @@ interface StoreState {
   tickets: Ticket[];
 }
 
+function emptyState(): StoreState {
+  return { nextId: 1, tickets: [] };
+}
+
 /**
- * In-memory ticket store with optional JSON file persistence.
- * When filePath is omitted the store behaves as a pure in-memory object,
- * which keeps unit tests free of filesystem access.
+ * In-memory ticket store with pluggable persistence.
+ * When no backend is given the store behaves as a pure in-memory object,
+ * which keeps unit tests free of I/O.
  */
 export class TicketStore {
   private state: StoreState;
 
-  constructor(private readonly filePath?: string, state?: StoreState) {
-    this.state = state ?? { nextId: 1, tickets: [] };
+  constructor(private readonly backend?: StorageBackend, state?: StoreState) {
+    this.state = state ?? emptyState();
   }
 
-  static async load(filePath: string): Promise<TicketStore> {
+  static async load(backend: StorageBackend): Promise<TicketStore> {
+    const store = new TicketStore(backend);
+    await store.reload();
+    return store;
+  }
+
+  /**
+   * Re-read state from the backend. Serverless instances do not share memory,
+   * so the bot reloads before each update to see changes made by other instances.
+   * Missing data means a fresh store. Corrupt data throws instead of resetting,
+   * because a reset followed by persist() would wipe every ticket.
+   */
+  async reload(): Promise<void> {
+    if (!this.backend) {
+      return;
+    }
+    const raw = await this.backend.read();
+    if (!raw) {
+      this.state = emptyState();
+      return;
+    }
     try {
-      const raw = await fs.readFile(filePath, "utf8");
-      const state = JSON.parse(raw) as StoreState;
-      return new TicketStore(filePath, state);
+      this.state = JSON.parse(raw) as StoreState;
     } catch {
-      return new TicketStore(filePath);
+      throw new Error("Ticket store data is corrupt; refusing to overwrite it.");
     }
   }
 
   async persist(): Promise<void> {
-    if (!this.filePath) {
+    if (!this.backend) {
       return;
     }
-    await fs.mkdir(dirname(this.filePath), { recursive: true });
-    await fs.writeFile(this.filePath, `${JSON.stringify(this.state, null, 2)}\n`, "utf8");
+    await this.backend.write(`${JSON.stringify(this.state, null, 2)}\n`);
   }
 
   peekNextId(): number {

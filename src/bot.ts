@@ -24,6 +24,12 @@ export interface BotDeps {
 export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
   const bot = new Bot(token);
 
+  // Serverless instances do not share memory: always start from the latest state.
+  bot.use(async (_ctx, next) => {
+    await store.reload();
+    await next();
+  });
+
   // User entry point: the support panel in direct messages.
   bot.command("start", async (ctx) => {
     if (ctx.chat?.type !== "private" || !ctx.from) {
@@ -215,6 +221,7 @@ export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
     }
 
     store.logMessage(ticket.id, "in", ticket.userName, ctx.msg.text ?? ctx.msg.caption);
+    await store.persist();
   }
 
   async function relayStaffMessage(ctx: Context): Promise<void> {
@@ -252,6 +259,7 @@ export function createBot({ token, staffGroupId, store }: BotDeps): Bot {
     }
 
     store.logMessage(ticket.id, "out", staffName, message.text ?? message.caption);
+    await store.persist();
   }
 
   bot.catch((error) => {

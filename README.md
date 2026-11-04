@@ -60,9 +60,10 @@ The store persists to `data/store.json` (override with `STORE_PATH`). Local mode
 ## Deploy to Vercel
 
 1. Import this repository into Vercel (CLI: `vercel`), or push and import from GitHub.
-2. Set environment variables: `BOT_TOKEN`, `STAFF_GROUP_ID`, `WEBHOOK_SECRET` (random string of letters, digits, `_`, `-`), and `STORE_PATH=/tmp/store.json` — the Vercel filesystem is ephemeral.
-3. Deploy and note the production domain, such as `https://telegram-ticket-bot.vercel.app`.
-4. Set `WEBHOOK_URL` in local `.env` and run:
+2. Create a free Redis database at [Upstash](https://upstash.com) and copy its REST URL and token.
+3. Set environment variables: `BOT_TOKEN`, `STAFF_GROUP_ID`, `WEBHOOK_SECRET` (random string of letters, digits, `_`, `-`), `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN`. Optionally set `STORE_KEY` to host several bots in one database.
+4. Deploy and note the production domain, such as `https://telegram-ticket-bot.vercel.app`.
+5. Set `WEBHOOK_URL` in local `.env` and run:
 
 ```powershell
 npm run set-webhook
@@ -70,7 +71,7 @@ npm run set-webhook
 
 Telegram will deliver updates to `https://your-project.vercel.app/api/bot`. The endpoint verifies Telegram's `X-Telegram-Bot-Api-Secret-Token` header against `WEBHOOK_SECRET`.
 
-> **Hosting note:** Vercel's Hobby filesystem is ephemeral, so ticket history resets between cold starts. It is fine for demos and light use. For a client production deployment, run the bot on a small VPS with the default file store (or swap `TicketStore` for a database) so history survives restarts.
+> **Storage note:** Vercel's filesystem is ephemeral, so the bot stores tickets in Upstash Redis there. Each update reloads the latest state, so separate serverless instances stay in sync. Without Upstash variables the bot falls back to a local JSON file (`STORE_PATH`), which suits long polling on a VPS.
 
 ## Quality checks
 
@@ -79,7 +80,7 @@ npm test
 npm run build
 ```
 
-`npm test` covers ticket lifecycle rules, one-ticket-per-user enforcement, transcript formatting, and staff permission checks. `npm run build` validates TypeScript without emitting artifacts.
+`npm test` covers ticket lifecycle rules, one-ticket-per-user enforcement, transcript formatting, staff permission checks, and storage backends (file, Upstash via a mocked fetch, reload across instances). `npm run build` validates TypeScript without emitting artifacts.
 
 ## Project structure
 
@@ -90,6 +91,7 @@ src/bot.ts              grammY handlers: panel, relaying, close, listing
 src/config.ts           Environment configuration and validation
 src/permissions.ts      Staff status checks
 src/tickets.ts          Ticket store: lifecycle, one-per-user rule, persistence
+src/storage.ts          Storage backends: JSON file, Upstash Redis, in-memory
 src/transcript.ts       Topic titles and closing transcripts
 src/webhook.ts          Webhook secret validation
 src/logger.ts           Structured JSON logger
