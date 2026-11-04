@@ -1,9 +1,9 @@
 import { Bot, Context, InlineKeyboard, InputFile } from "grammy";
 import { callbackData, parseCallback } from "./callbacks.js";
 import { DEFAULT_CATEGORIES, findCategory, type Category } from "./categories.js";
-import { detectLang, escapeHtml, messages, type Lang } from "./i18n.js";
+import { detectLang, messages, type Lang } from "./i18n.js";
 import type { Ticket, TicketStore } from "./tickets.js";
-import { formatTranscript, shortAge, ticketTopicTitle } from "./transcript.js";
+import { formatOpenTicketLine, formatTranscript, ticketTopicTitle } from "./transcript.js";
 import { isStaff } from "./permissions.js";
 import { logger } from "./logger.js";
 
@@ -347,16 +347,7 @@ export function createBot({
     }
 
     const now = new Date();
-    const lines = open.map((ticket) =>
-      [
-        `<b>#${ticket.id}</b>`,
-        ticket.category ? escapeHtml(ticket.category) : undefined,
-        `<a href="tg://user?id=${ticket.userId}">${escapeHtml(ticket.userName)}</a>`,
-        `🕒 ${shortAge(ticket.createdAt, now)}`,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    );
+    const lines = open.map((ticket) => formatOpenTicketLine(ticket, now));
     await ctx.reply(`${staff.staffOpenHeader(open.length)}\n\n${lines.join("\n")}`, {
       ...HTML,
       message_thread_id: ctx.message?.message_thread_id,

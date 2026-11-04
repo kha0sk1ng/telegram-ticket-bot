@@ -1,3 +1,4 @@
+import { escapeHtml } from "./i18n.js";
 import type { Ticket } from "./tickets.js";
 
 /** Telegram limits forum topic names to 128 characters. */
@@ -21,6 +22,21 @@ export function shortAge(iso: string, now: Date = new Date()): string {
   }
   const hours = Math.floor(minutes / 60);
   return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d`;
+}
+
+/**
+ * One HTML line of the /tickets list. Every interpolated value is escaped:
+ * a single stray "<" (even the "<1m" age) makes Telegram reject the message.
+ */
+export function formatOpenTicketLine(ticket: Ticket, now: Date = new Date()): string {
+  return [
+    `<b>#${ticket.id}</b>`,
+    ticket.category ? escapeHtml(ticket.category) : undefined,
+    `<a href="tg://user?id=${ticket.userId}">${escapeHtml(ticket.userName)}</a>`,
+    `🕒 ${escapeHtml(shortAge(ticket.createdAt, now))}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 export function formatTranscript(ticket: Ticket): string {

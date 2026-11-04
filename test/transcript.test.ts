@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatTranscript, shortAge, ticketTopicTitle } from "../src/transcript.js";
+import { formatOpenTicketLine, formatTranscript, shortAge, ticketTopicTitle } from "../src/transcript.js";
 import type { Ticket } from "../src/tickets.js";
 
 function makeTicket(overrides: Partial<Ticket> = {}): Ticket {
@@ -69,4 +69,35 @@ test("formatTranscript includes close metadata when present", () => {
 test("formatTranscript handles a ticket without messages", () => {
   const text = formatTranscript(makeTicket({ messages: [] }));
   assert.match(text, /No messages were exchanged\./);
+});
+
+test("formatOpenTicketLine escapes every HTML-sensitive value", () => {
+  const now = new Date("2026-09-14T12:00:00.000Z");
+  const line = formatOpenTicketLine(
+    {
+      id: 7,
+      userId: 42,
+      userName: "<b>Eve & co</b>",
+      topicId: 100,
+      status: "open",
+      createdAt: "2026-09-14T11:59:30.000Z",
+      messages: [],
+      category: "💸 <Withdrawal>",
+    },
+    now,
+  );
+  // A fresh ticket is "<1m" old; unescaped, Telegram rejects the whole message.
+  assert.equal(
+    line,
+    '<b>#7</b> · 💸 &lt;Withdrawal&gt; · <a href="tg://user?id=42">&lt;b&gt;Eve &amp; co&lt;/b&gt;</a> · 🕒 &lt;1m',
+  );
+});
+
+test("formatOpenTicketLine omits a missing category", () => {
+  const now = new Date("2026-09-14T12:00:00.000Z");
+  const line = formatOpenTicketLine(
+    { id: 1, userId: 5, userName: "@bob", topicId: 9, status: "open", createdAt: "2026-09-14T09:00:00.000Z", messages: [] },
+    now,
+  );
+  assert.equal(line, '<b>#1</b> · <a href="tg://user?id=5">@bob</a> · 🕒 3h');
 });
